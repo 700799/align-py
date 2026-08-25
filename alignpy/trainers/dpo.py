@@ -85,15 +85,15 @@ class DPOTrainer(BaseAlignmentTrainer):
             }
         )
 
+        # TRL >= 1.0 enforces one combined sequence cap; AlignPy's separate
+        # prompt/completion caps are validated upstream and folded into it.
         args = TRLDPOConfig(
             **self._base_training_kwargs(),
             beta=dpo.beta,
             loss_type=dpo.loss_type,
             label_smoothing=dpo.label_smoothing,
-            max_prompt_length=dpo.max_prompt_length,
-            max_completion_length=dpo.max_completion_length,
             max_length=dpo.max_length,
-            reference_free=dpo.reference_free,
+            truncation_mode=dpo.truncation_mode,
         )
 
         return TRLDPOTrainer(

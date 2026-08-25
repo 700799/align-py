@@ -182,7 +182,7 @@ class BaseAlignmentTrainer(abc.ABC):
         cfg = self.config.model
         dtype = cfg.torch_dtype if cfg.torch_dtype == "auto" else getattr(torch, cfg.torch_dtype)
         kwargs: dict[str, Any] = {
-            "torch_dtype": dtype,
+            "dtype": dtype,  # transformers >= 5 name (was torch_dtype)
             "trust_remote_code": cfg.trust_remote_code,
         }
         if cfg.attn_implementation is not None:
@@ -229,9 +229,14 @@ class BaseAlignmentTrainer(abc.ABC):
         data = self.config.data
         train = self._train_dataset
         if train is None:
+            if data.dataset_name_or_path is None:
+                raise ValueError(
+                    "No training data: pass train_dataset= to the trainer or set "
+                    "data.dataset_name_or_path in the config."
+                )
             train = load_dataset(data.dataset_name_or_path, split=data.split)
         eval_ds = self._eval_dataset
-        if eval_ds is None and data.eval_split is not None:
+        if eval_ds is None and data.eval_split is not None and data.dataset_name_or_path is not None:
             eval_ds = load_dataset(data.dataset_name_or_path, split=data.eval_split)
 
         def prepare(ds: "Dataset") -> "Dataset":
@@ -260,7 +265,7 @@ class BaseAlignmentTrainer(abc.ABC):
             "num_train_epochs": t.num_train_epochs,
             "max_steps": t.max_steps,
             "lr_scheduler_type": t.lr_scheduler_type,
-            "warmup_ratio": t.warmup_ratio,
+            "warmup_steps": t.warmup_steps,
             "logging_steps": t.logging_steps,
             "save_strategy": t.save_strategy,
             "save_steps": t.save_steps,

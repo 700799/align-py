@@ -21,10 +21,10 @@ classifiers = [
 dependencies = [
     "pydantic>=2.7",
     "pyyaml>=6.0",
-    "trl>=0.15,<1.0",
-    "transformers>=4.49",
-    "peft>=0.14",
-    "datasets>=2.20",
+    "trl>=1.0,<2.0",
+    "transformers>=5.0",
+    "peft>=0.17",
+    "datasets>=3.0",
     "accelerate>=1.0",
 ]
 
@@ -40,3 +40,9 @@ packages = ["alignpy"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+markers = [
+    "integration: end-to-end tests that download models and run real training (deselect with -m 'not integration')",
+]

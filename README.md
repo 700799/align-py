@@ -20,7 +20,8 @@ automated rewards, through a clean Python-first SDK and a YAML-driven CLI:
    Pydantic V2 schema (`AlignmentConfig`). A typo'd key or an out-of-range
    `beta` fails at config-load time — before any weights download.
 2. **Thin, honest wrappers.** AlignPy trainers translate a validated config
-   into the corresponding TRL trainer; they don't reimplement algorithms.
+   into the corresponding TRL trainer (targeting TRL >= 1.0 and
+   transformers >= 5); they don't reimplement algorithms.
 3. **Lazy heavy imports.** `from alignpy import AlignmentConfig` works without
    torch installed; models and datasets only load when training starts.
 4. **Rewards are pluggable.** Register any Python callable as a reward
@@ -96,5 +97,7 @@ grpo:
 
 ```bash
 pip install -e ".[dev]"
-pytest tests/       # schema, reward-registry, and CLI tests — CPU-only
+pytest -m "not integration"   # fast lane: schema, reward-registry, and CLI tests
+pytest tests/                 # + end-to-end DPO runs: an offline tiny model (seconds),
+                              #   and SmolLM2-135M-Instruct when the HF Hub is reachable
 ```

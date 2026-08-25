@@ -112,8 +112,12 @@ class DataConfig(_StrictModel):
     canonically named need no mapping.
     """
 
-    dataset_name_or_path: str = Field(
-        description="Hub dataset id or local path (anything ``datasets.load_dataset`` accepts)."
+    dataset_name_or_path: str | None = Field(
+        default=None,
+        description=(
+            "Hub dataset id or local path (anything ``datasets.load_dataset`` accepts). "
+            "Optional when datasets are passed to the trainer directly (SDK usage)."
+        ),
     )
     split: str = Field(default="train", description="Training split expression, e.g. 'train[:5%]'.")
     eval_split: str | None = Field(
@@ -141,7 +145,7 @@ class TrainingConfig(_StrictModel):
         default=-1, description="If > 0, overrides num_train_epochs (transformers semantics)."
     )
     lr_scheduler_type: str = Field(default="cosine")
-    warmup_ratio: float = Field(default=0.05, ge=0.0, le=1.0)
+    warmup_steps: int = Field(default=0, ge=0)
     logging_steps: int = Field(default=10, ge=1)
     save_strategy: Literal["no", "steps", "epoch"] = Field(default="epoch")
     save_steps: int = Field(default=500, ge=1)
@@ -196,10 +200,13 @@ class DPOParams(_StrictModel):
     max_completion_length: int = Field(default=1024, ge=8)
     max_length: int | None = Field(
         default=None,
-        description="Full-sequence cap; defaults to max_prompt_length + max_completion_length.",
+        description=(
+            "Full-sequence cap; defaults to max_prompt_length + max_completion_length. "
+            "This combined cap is what recent TRL (>= 1.0) enforces at tokenization time."
+        ),
     )
-    reference_free: bool = Field(
-        default=False, description="Replace the reference model with a uniform policy."
+    truncation_mode: Literal["keep_start", "keep_end"] = Field(
+        default="keep_start", description="Which side of over-long sequences to keep."
     )
 
     @model_validator(mode="after")
@@ -228,7 +235,6 @@ class GRPOParams(_StrictModel):
     num_generations: int = Field(
         default=8, ge=2, description="Group size G: completions sampled per prompt."
     )
-    max_prompt_length: int = Field(default=512, ge=8)
     max_completion_length: int = Field(default=1024, ge=8)
     temperature: float = Field(default=0.9, gt=0.0, description="Sampling temperature.")
     top_p: float = Field(default=1.0, gt=0.0, le=1.0)
@@ -243,8 +249,9 @@ class GRPOParams(_StrictModel):
     reward_weights: list[float] | None = Field(
         default=None, description="Per-function weights; defaults to 1.0 each."
     )
-    scale_rewards: bool = Field(
-        default=True, description="Divide advantages by the group's reward std."
+    scale_rewards: Literal["group", "batch", "none"] = Field(
+        default="group",
+        description="Reward-std normalization scope for advantages (TRL >= 1.0 semantics).",
     )
 
     @model_validator(mode="after")
@@ -274,7 +281,10 @@ class AlignmentConfig(_StrictModel):
 
     method: AlignmentMethod = Field(description="Which alignment algorithm to run.")
     model: ModelConfig
-    data: DataConfig
+    data: DataConfig = Field(
+        default_factory=DataConfig,
+        description="Optional when datasets are passed to the trainer directly.",
+    )
     train: TrainingConfig = Field(default_factory=TrainingConfig)
     peft: PeftConfig = Field(default_factory=PeftConfig)
     sft: SFTParams | None = None

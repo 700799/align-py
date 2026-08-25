@@ -78,7 +78,6 @@ class GRPOTrainer(BaseAlignmentTrainer):
         args = TRLGRPOConfig(
             **self._base_training_kwargs(),
             num_generations=grpo.num_generations,
-            max_prompt_length=grpo.max_prompt_length,
             max_completion_length=grpo.max_completion_length,
             temperature=grpo.temperature,
             top_p=grpo.top_p,
