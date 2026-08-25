@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "alignpy"
+version = "0.1.0"
+description = "A lightweight, modular framework for LLM alignment: SFT, DPO, and GRPO on top of Hugging Face TRL."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "AlignPy contributors" }]
+keywords = ["llm", "alignment", "dpo", "grpo", "rlhf", "preference-tuning", "trl"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "pydantic>=2.7",
+    "pyyaml>=6.0",
+    "trl>=0.15,<1.0",
+    "transformers>=4.49",
+    "peft>=0.14",
+    "datasets>=2.20",
+    "accelerate>=1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[project.scripts]
+alignpy = "alignpy.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["alignpy"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
