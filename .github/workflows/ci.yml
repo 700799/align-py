@@ -14,7 +14,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install pydantic pyyaml pytest
+      - run: pip install pydantic pyyaml pytest ruff
+      - run: ruff check alignpy tests examples
       # Torch-dependent tests self-skip via importorskip in this lane.
       - run: pytest -m "not integration" -q
 

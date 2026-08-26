@@ -15,4 +15,4 @@ def watch_margins(metrics, step):  # fires every logging step with TRL's reward 
 
 trainer = DPOTrainer(config, reward_hooks=[watch_margins])
 trainer.train()
-trainer.save()  # writes model + tokenizer + alignpy_config.yaml -> `alignpy eval --model ./qwen-dpo`
+trainer.save()  # model + tokenizer + alignpy_config.yaml -> `alignpy eval --model ./qwen-dpo`

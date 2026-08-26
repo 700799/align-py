@@ -21,7 +21,10 @@ def test_minimal_config_fills_defaults():
     assert config.active_params is config.dpo
 
 
-@pytest.mark.parametrize("method,params_cls", [("sft", SFTParams), ("dpo", DPOParams), ("grpo", GRPOParams)])
+@pytest.mark.parametrize(
+    "method,params_cls",
+    [("sft", SFTParams), ("dpo", DPOParams), ("grpo", GRPOParams)],
+)
 def test_active_params_per_method(method, params_cls):
     config = AlignmentConfig.from_dict({**MINIMAL, "method": method})
     assert isinstance(config.active_params, params_cls)
@@ -75,6 +78,25 @@ def test_yaml_round_trip(tmp_path):
     )
     path = config.to_yaml(tmp_path / "config.yaml")
     assert AlignmentConfig.from_yaml(path) == config
+
+
+def test_data_block_optional_for_sdk_usage():
+    config = AlignmentConfig.from_dict({"method": "dpo", "model": {"model_name_or_path": "m"}})
+    assert config.data.dataset_name_or_path is None
+    assert config.data.split == "train"
+
+
+def test_truncation_mode_and_scale_rewards_literals_enforced():
+    with pytest.raises(ValidationError):
+        DPOParams(truncation_mode="keep_middle")
+    with pytest.raises(ValidationError):
+        GRPOParams(scale_rewards="sometimes")
+    assert GRPOParams(scale_rewards="none").scale_rewards == "none"
+
+
+def test_negative_warmup_steps_rejected():
+    with pytest.raises(ValidationError):
+        AlignmentConfig.from_dict({**MINIMAL, "train": {"warmup_steps": -1}})
 
 
 def test_example_configs_validate():

@@ -41,7 +41,7 @@ def __getattr__(name: str):
     return getattr(importlib.import_module(module_name), attr)
 
 
-def build_trainer(config: AlignmentConfig, *args, **kwargs) -> "BaseAlignmentTrainer":
+def build_trainer(config: AlignmentConfig, *args, **kwargs) -> BaseAlignmentTrainer:
     """Instantiate the trainer matching ``config.method``.
 
     Extra positional/keyword arguments (datasets, reward_hooks, callbacks, …)

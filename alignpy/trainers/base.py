@@ -18,14 +18,17 @@ dispatches them to user hooks.
 from __future__ import annotations
 
 import abc
+import logging
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Mapping, Protocol, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar, Protocol
 
 import torch
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
     PreTrainedModel,
+    PreTrainedTokenizerBase,
     TrainerCallback,
 )
 
@@ -36,6 +39,8 @@ if TYPE_CHECKING:
     from peft import LoraConfig
 
 __all__ = ["BaseAlignmentTrainer", "RewardLogHook", "RewardMetricsCallback"]
+
+logger = logging.getLogger(__name__)
 
 #: Filename of the AlignPy config snapshot written next to saved models, so
 #: ``alignpy eval --model <dir>`` can reconstruct the run without extra flags.
@@ -101,8 +106,8 @@ class BaseAlignmentTrainer(abc.ABC):
     def __init__(
         self,
         config: AlignmentConfig,
-        train_dataset: "Dataset | None" = None,
-        eval_dataset: "Dataset | None" = None,
+        train_dataset: Dataset | None = None,
+        eval_dataset: Dataset | None = None,
         *,
         reward_hooks: Sequence[RewardLogHook] = (),
         callbacks: Sequence[TrainerCallback] = (),
@@ -145,11 +150,19 @@ class BaseAlignmentTrainer(abc.ABC):
 
     def evaluate(self) -> dict[str, float]:
         """Evaluate on the eval dataset (requires one to be configured)."""
+        # Cheap pre-build check, then a post-build check that reflects what the
+        # underlying trainer actually received.
         if self._eval_dataset is None and self.config.data.eval_split is None:
             raise ValueError(
                 "No eval data: pass eval_dataset= or set data.eval_split in the config."
             )
-        return self.trainer.evaluate()
+        trainer = self.trainer
+        if trainer.eval_dataset is None:
+            raise ValueError(
+                "No eval dataset reached the trainer: data.eval_split requires "
+                "data.dataset_name_or_path, or pass eval_dataset= directly."
+            )
+        return trainer.evaluate()
 
     def save(self, output_dir: str | Path | None = None) -> Path:
         """Save model, tokenizer, and a config snapshot; returns the directory.
@@ -163,13 +176,14 @@ class BaseAlignmentTrainer(abc.ABC):
         if self.trainer.processing_class is not None:
             self.trainer.processing_class.save_pretrained(str(output_dir))
         self.config.to_yaml(output_dir / CONFIG_SNAPSHOT_FILENAME)
+        logger.info("Saved model, tokenizer, and config snapshot to %s", output_dir)
         return output_dir
 
     # ------------------------------------------------------------------ #
     # Shared component loaders (used by subclasses inside _build_trainer)
     # ------------------------------------------------------------------ #
 
-    def _load_tokenizer(self) -> Any:
+    def _load_tokenizer(self) -> PreTrainedTokenizerBase:
         cfg = self.config.model
         tokenizer = AutoTokenizer.from_pretrained(
             cfg.model_name_or_path, trust_remote_code=cfg.trust_remote_code
@@ -187,9 +201,9 @@ class BaseAlignmentTrainer(abc.ABC):
         }
         if cfg.attn_implementation is not None:
             kwargs["attn_implementation"] = cfg.attn_implementation
-        return AutoModelForCausalLM.from_pretrained(
-            name_or_path or cfg.model_name_or_path, **kwargs
-        )
+        name_or_path = name_or_path or cfg.model_name_or_path
+        logger.info("Loading model %s (dtype=%s)", name_or_path, cfg.torch_dtype)
+        return AutoModelForCausalLM.from_pretrained(name_or_path, **kwargs)
 
     def _load_ref_model(self) -> PreTrainedModel | None:
         """Explicit reference model, or None to let TRL derive one.
@@ -203,7 +217,7 @@ class BaseAlignmentTrainer(abc.ABC):
             return None
         return self._load_model(cfg.ref_model_name_or_path)
 
-    def _peft_config(self) -> "LoraConfig | None":
+    def _peft_config(self) -> LoraConfig | None:
         if not self.config.peft.enabled:
             return None
         from peft import LoraConfig
@@ -217,7 +231,7 @@ class BaseAlignmentTrainer(abc.ABC):
             task_type="CAUSAL_LM",
         )
 
-    def _load_datasets(self, column_mapping: Mapping[str, str]) -> tuple["Dataset", "Dataset | None"]:
+    def _load_datasets(self, column_mapping: Mapping[str, str]) -> tuple[Dataset, Dataset | None]:
         """Return (train, eval) datasets, loading from config when not injected.
 
         ``column_mapping`` maps configured column names to the canonical names
@@ -236,10 +250,10 @@ class BaseAlignmentTrainer(abc.ABC):
                 )
             train = load_dataset(data.dataset_name_or_path, split=data.split)
         eval_ds = self._eval_dataset
-        if eval_ds is None and data.eval_split is not None and data.dataset_name_or_path is not None:
+        if eval_ds is None and None not in (data.eval_split, data.dataset_name_or_path):
             eval_ds = load_dataset(data.dataset_name_or_path, split=data.eval_split)
 
-        def prepare(ds: "Dataset") -> "Dataset":
+        def prepare(ds: Dataset) -> Dataset:
             renames = {
                 src: dst
                 for src, dst in column_mapping.items()
@@ -251,7 +265,20 @@ class BaseAlignmentTrainer(abc.ABC):
                 ds = ds.select(range(min(data.max_samples, len(ds))))
             return ds
 
-        return prepare(train), (prepare(eval_ds) if eval_ds is not None else None)
+        train = prepare(train)
+        eval_ds = prepare(eval_ds) if eval_ds is not None else None
+        if eval_ds is None and self.config.train.eval_strategy != "no":
+            raise ValueError(
+                f"train.eval_strategy={self.config.train.eval_strategy!r} but no eval "
+                "dataset is available: pass eval_dataset= or set data.eval_split "
+                "(with dataset_name_or_path) in the config."
+            )
+        logger.info(
+            "Datasets ready: train=%d samples, eval=%s",
+            len(train),
+            f"{len(eval_ds)} samples" if eval_ds is not None else "none",
+        )
+        return train, eval_ds
 
     def _base_training_kwargs(self) -> dict[str, Any]:
         """TrainingConfig fields shared by every TRL config class."""

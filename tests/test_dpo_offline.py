@@ -2,18 +2,18 @@
 
 Runs the *identical* AlignPy -> TRL code path as ``test_dpo_smollm2.py`` —
 config validation, in-memory preference dataset, LoRA attachment, two real
-optimizer steps, reward-hook telemetry — but against a ~400k-parameter
-randomly-initialized Llama-architecture model built and saved locally, so it
-needs no network access and finishes in seconds. The correctness invariants
-asserted here (zero-init LoRA => policy == reference at step 1 => implicit
-reward margin ~0 and sigmoid DPO loss ~ln 2) are architecture-independent.
+optimizer steps, reward-hook telemetry — but against the tiny local model from
+``conftest.tiny_model_dir``, so it needs no network access and finishes in
+seconds. The correctness invariants asserted here (zero-init LoRA => policy ==
+reference at step 1 => implicit reward margin ~0 and sigmoid DPO loss ~ln 2)
+are architecture-independent.
 """
 
 import math
 
 import pytest
 
-torch = pytest.importorskip("torch", reason="requires torch")
+pytest.importorskip("torch", reason="requires torch")
 pytest.importorskip("trl", reason="requires trl")
 pytest.importorskip("peft", reason="requires peft")
 pytest.importorskip("datasets", reason="requires datasets")
@@ -21,67 +21,15 @@ pytest.importorskip("datasets", reason="requires datasets")
 from datasets import Dataset
 
 from alignpy import AlignmentConfig, DPOTrainer
-
-PREFERENCE_PAIRS = {
-    "prompt": [
-        "What is the capital of France?",
-        "How many legs does a spider have?",
-        "What color is the sky on a clear day?",
-    ],
-    "chosen": [
-        "The capital of France is Paris.",
-        "A spider has eight legs.",
-        "The sky is blue on a clear day.",
-    ],
-    "rejected": [
-        "Well, that is a really interesting question, and after this long preamble the "
-        "answer is of course the world-famous city of Paris.",
-        "Great question! Spiders are fascinating arachnids famously known throughout the "
-        "animal kingdom for possessing a grand total of eight legs altogether.",
-        "Ah, the sky! To human observers it appears to be a beautiful shade of blue due "
-        "to a phenomenon called Rayleigh scattering.",
-    ],
-}
+from tests.conftest import PREFERENCE_PAIRS
 
 
-def _build_tiny_llama(save_dir) -> None:
-    """Save a tiny random Llama model + freshly-trained BPE tokenizer locally."""
-    from tokenizers import Tokenizer, models, pre_tokenizers, trainers
-    from transformers import LlamaConfig, LlamaForCausalLM, PreTrainedTokenizerFast
-
-    corpus = sum(PREFERENCE_PAIRS.values(), [])
-    bpe = Tokenizer(models.BPE(unk_token="<unk>"))
-    bpe.pre_tokenizer = pre_tokenizers.Whitespace()
-    bpe.train_from_iterator(
-        corpus, trainers.BpeTrainer(vocab_size=512, special_tokens=["<unk>", "<s>", "</s>"])
-    )
-    tokenizer = PreTrainedTokenizerFast(
-        tokenizer_object=bpe, unk_token="<unk>", bos_token="<s>", eos_token="</s>"
-    )
-    torch.manual_seed(0)
-    model = LlamaForCausalLM(
-        LlamaConfig(
-            vocab_size=len(tokenizer),
-            hidden_size=64,
-            intermediate_size=128,
-            num_hidden_layers=2,
-            num_attention_heads=4,
-            num_key_value_heads=2,
-            max_position_embeddings=256,
-        )
-    )
-    model.save_pretrained(save_dir)
-    tokenizer.save_pretrained(save_dir)
-
-
-def test_dpo_two_steps_offline_tiny_model(tmp_path):
-    model_dir = tmp_path / "tiny-llama"
-    _build_tiny_llama(model_dir)
+def test_dpo_two_steps_offline_tiny_model(tiny_model_dir, tmp_path):
     dataset = Dataset.from_dict(PREFERENCE_PAIRS)
 
     config = AlignmentConfig.from_dict({
         "method": "dpo",
-        "model": {"model_name_or_path": str(model_dir), "torch_dtype": "float32"},
+        "model": {"model_name_or_path": str(tiny_model_dir), "torch_dtype": "float32"},
         "peft": {"enabled": True, "r": 8, "lora_alpha": 16,
                  "target_modules": ["q_proj", "v_proj"]},
         "train": {
@@ -98,12 +46,12 @@ def test_dpo_two_steps_offline_tiny_model(tmp_path):
     })
 
     margin_log: list[tuple[int, float]] = []
-    trainer = DPOTrainer(
-        config,
-        train_dataset=dataset,
-        reward_hooks=[lambda m, step: margin_log.append((step, m["rewards/margins"]))
-                      if "rewards/margins" in m else None],
-    )
+
+    def capture_margins(metrics, step):
+        if "rewards/margins" in metrics:
+            margin_log.append((step, metrics["rewards/margins"]))
+
+    trainer = DPOTrainer(config, train_dataset=dataset, reward_hooks=[capture_margins])
     result = trainer.train()
 
     print("\nImplicit log-ratio reward margins (tiny offline model):")

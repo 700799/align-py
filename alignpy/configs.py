@@ -26,7 +26,7 @@ silently training with defaults.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Literal, Union
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -157,12 +157,12 @@ class TrainingConfig(_StrictModel):
     fp16: bool = Field(default=False)
     gradient_checkpointing: bool = Field(default=False)
     seed: int = Field(default=42)
-    report_to: Union[str, list[str]] = Field(
+    report_to: str | list[str] = Field(
         default="none", description="Experiment trackers, e.g. 'wandb' (transformers semantics)."
     )
 
     @model_validator(mode="after")
-    def _check_precision(self) -> "TrainingConfig":
+    def _check_precision(self) -> TrainingConfig:
         if self.bf16 and self.fp16:
             raise ValueError("bf16 and fp16 are mutually exclusive; enable at most one.")
         return self
@@ -210,7 +210,7 @@ class DPOParams(_StrictModel):
     )
 
     @model_validator(mode="after")
-    def _derive_max_length(self) -> "DPOParams":
+    def _derive_max_length(self) -> DPOParams:
         if self.max_length is None:
             # Assign through __dict__ to avoid re-triggering validate_assignment.
             self.__dict__["max_length"] = self.max_prompt_length + self.max_completion_length
@@ -255,7 +255,7 @@ class GRPOParams(_StrictModel):
     )
 
     @model_validator(mode="after")
-    def _check_weights(self) -> "GRPOParams":
+    def _check_weights(self) -> GRPOParams:
         if self.reward_weights is not None and len(self.reward_weights) != len(self.reward_funcs):
             raise ValueError(
                 f"reward_weights has {len(self.reward_weights)} entries but reward_funcs "
@@ -292,7 +292,7 @@ class AlignmentConfig(_StrictModel):
     grpo: GRPOParams | None = None
 
     @model_validator(mode="after")
-    def _ensure_active_params(self) -> "AlignmentConfig":
+    def _ensure_active_params(self) -> AlignmentConfig:
         """Auto-create the parameter block for the selected method if omitted."""
         defaults = {"sft": SFTParams, "dpo": DPOParams, "grpo": GRPOParams}
         if getattr(self, self.method) is None:
@@ -307,14 +307,14 @@ class AlignmentConfig(_StrictModel):
         return params
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "AlignmentConfig":
+    def from_dict(cls, data: dict[str, Any]) -> AlignmentConfig:
         """Validate a plain dict (e.g. parsed YAML/JSON) into a config."""
         return cls.model_validate(data)
 
     @classmethod
-    def from_yaml(cls, path: str | Path) -> "AlignmentConfig":
+    def from_yaml(cls, path: str | Path) -> AlignmentConfig:
         """Load and validate a YAML config file."""
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             raw = yaml.safe_load(f)
         if not isinstance(raw, dict):
             raise ValueError(f"{path} must contain a YAML mapping, got {type(raw).__name__}.")

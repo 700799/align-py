@@ -39,6 +39,11 @@ def _load_config(path: Path) -> AlignmentConfig:
 
 def _cmd_align(args: argparse.Namespace) -> None:
     config = _load_config(args.config)
+    if args.validate_only:
+        # CI-friendly config linting: schema validation already happened in
+        # _load_config, so just echo the fully-resolved config and exit 0.
+        print(json.dumps(config.model_dump(mode="json"), indent=2, sort_keys=True))
+        return
     # Import here so `alignpy align --help` and config validation never need torch.
     from alignpy.trainers import build_trainer
 
@@ -68,14 +73,21 @@ def _cmd_eval(args: argparse.Namespace) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     """The ``alignpy`` argument parser (exposed separately for testing/docs)."""
+    from alignpy import __version__
+
     parser = argparse.ArgumentParser(
         prog="alignpy",
         description="Lightweight LLM alignment: SFT, DPO, and GRPO on top of TRL.",
     )
+    parser.add_argument("--version", action="version", version=f"alignpy {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
     align = sub.add_parser("align", help="Run an alignment pass from a YAML config.")
     align.add_argument("--config", type=Path, required=True, help="Path to a YAML config.")
+    align.add_argument(
+        "--validate-only", action="store_true",
+        help="Validate the config and print its resolved form without training.",
+    )
     align.set_defaults(func=_cmd_align)
 
     evaluate = sub.add_parser("eval", help="Evaluate an aligned model.")

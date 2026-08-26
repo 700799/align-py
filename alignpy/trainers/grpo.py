@@ -19,7 +19,8 @@ configured :class:`~alignpy.trainers.base.RewardLogHook` every logging step.
 
 from __future__ import annotations
 
-from typing import ClassVar, Sequence
+from collections.abc import Sequence
+from typing import ClassVar
 
 from trl import GRPOConfig as TRLGRPOConfig
 from trl import GRPOTrainer as TRLGRPOTrainer

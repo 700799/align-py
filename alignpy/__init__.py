@@ -26,7 +26,14 @@ from alignpy.configs import (
 from alignpy.rewards import RewardFunction, register_reward
 
 if TYPE_CHECKING:
-    from alignpy.trainers import DPOTrainer, GRPOTrainer, SFTTrainer, build_trainer
+    from alignpy.trainers import (
+        DPOTrainer,
+        GRPOTrainer,
+        RewardLogHook,
+        RewardMetricsCallback,
+        SFTTrainer,
+        build_trainer,
+    )
 
 __version__ = "0.1.0"
 
@@ -40,6 +47,8 @@ __all__ = [
     "ModelConfig",
     "PeftConfig",
     "RewardFunction",
+    "RewardLogHook",
+    "RewardMetricsCallback",
     "SFTParams",
     "SFTTrainer",
     "TrainingConfig",
@@ -48,7 +57,14 @@ __all__ = [
     "__version__",
 ]
 
-_TRAINER_EXPORTS = {"DPOTrainer", "GRPOTrainer", "SFTTrainer", "build_trainer"}
+_TRAINER_EXPORTS = {
+    "DPOTrainer",
+    "GRPOTrainer",
+    "RewardLogHook",
+    "RewardMetricsCallback",
+    "SFTTrainer",
+    "build_trainer",
+}
 
 
 def __getattr__(name: str):

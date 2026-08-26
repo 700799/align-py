@@ -97,7 +97,8 @@ grpo:
 
 ```bash
 pip install -e ".[dev]"
-pytest -m "not integration"   # fast lane: schema, reward-registry, and CLI tests
-pytest tests/                 # + end-to-end DPO runs: an offline tiny model (seconds),
-                              #   and SmolLM2-135M-Instruct when the HF Hub is reachable
+ruff check alignpy tests examples   # lint (enforced in CI)
+pytest -m "not integration"         # fast lane: schema, reward-registry, CLI, trainer units
+pytest tests/                       # + offline end-to-end runs for SFT, DPO, and GRPO,
+                                    #   and SmolLM2-135M DPO when the HF Hub is reachable
 ```
