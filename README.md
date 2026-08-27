@@ -102,3 +102,28 @@ pytest -m "not integration"         # fast lane: schema, reward-registry, CLI, t
 pytest tests/                       # + offline end-to-end runs for SFT, DPO, and GRPO,
                                     #   and SmolLM2-135M DPO when the HF Hub is reachable
 ```
+
+## Releasing
+
+`__version__` in `alignpy/__init__.py` is the single source of truth for the version;
+`pyproject.toml` reads it via hatchling. Publishing runs entirely in GitHub Actions
+(`.github/workflows/release.yml`) — no credentials are ever needed locally.
+
+```bash
+python -m build && twine check --strict dist/*   # optional local pre-flight
+```
+
+1. **Rehearse**: Actions → Release → Run workflow → target `testpypi`, then verify:
+   ```bash
+   pip install --index-url https://test.pypi.org/simple/ \
+               --extra-index-url https://pypi.org/simple/ alignpy
+   ```
+   The `--extra-index-url` is required — `trl`, `transformers`, and `peft` are not
+   mirrored on TestPyPI.
+2. **Release**: bump `__version__`, then `git tag vX.Y.Z && git push origin vX.Y.Z`.
+   The workflow refuses to build if the tag disagrees with `__version__`, and the
+   upload waits on approval of the protected `pypi` environment.
+
+A version number is permanent once uploaded — it can never be reused or overwritten,
+even after deletion. Use `X.Y.Z.devN` for repeated rehearsals.
+

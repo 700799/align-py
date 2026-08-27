@@ -4,17 +4,25 @@ build-backend = "hatchling.build"
 
 [project]
 name = "alignpy"
-version = "0.1.0"
+# Version lives only in alignpy/__init__.py (__version__); hatchling reads it.
+dynamic = ["version"]
 description = "A lightweight, modular framework for LLM alignment: SFT, DPO, and GRPO on top of Hugging Face TRL."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 authors = [{ name = "AlignPy contributors" }]
 keywords = ["llm", "alignment", "dpo", "grpo", "rlhf", "preference-tuning", "trl"]
+# No "License :: OSI Approved ::" classifier: PEP 639 forbids pairing it with the
+# SPDX `license` field above.
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
@@ -31,11 +39,22 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.6"]
 
+[project.urls]
+Homepage = "https://github.com/700799/align-py"
+Repository = "https://github.com/700799/align-py"
+Issues = "https://github.com/700799/align-py/issues"
+
 [project.scripts]
 alignpy = "alignpy.cli:main"
 
+[tool.hatch.version]
+path = "alignpy/__init__.py"
+
 [tool.hatch.build.targets.wheel]
 packages = ["alignpy"]
+
+[tool.hatch.build.targets.sdist]
+include = ["alignpy", "tests", "examples", "README.md", "LICENSE", "pyproject.toml"]
 
 [tool.ruff]
 line-length = 100
