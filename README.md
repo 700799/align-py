@@ -113,17 +113,13 @@ pytest tests/                       # + offline end-to-end runs for SFT, DPO, an
 python -m build && twine check --strict dist/*   # optional local pre-flight
 ```
 
-1. **Rehearse**: Actions → Release → Run workflow → target `testpypi`, then verify:
-   ```bash
-   pip install --index-url https://test.pypi.org/simple/ \
-               --extra-index-url https://pypi.org/simple/ alignpy
-   ```
-   The `--extra-index-url` is required — `trl`, `transformers`, and `peft` are not
-   mirrored on TestPyPI.
+1. **Dry run**: Actions → Release → Run workflow with *Upload to PyPI* unchecked.
+   This builds, runs `twine check --strict`, and publishes the `dist/` artifact for
+   inspection — without uploading anything.
 2. **Release**: bump `__version__`, then `git tag vX.Y.Z && git push origin vX.Y.Z`.
    The workflow refuses to build if the tag disagrees with `__version__`, and the
    upload waits on approval of the protected `pypi` environment.
 
 A version number is permanent once uploaded — it can never be reused or overwritten,
-even after deletion. Use `X.Y.Z.devN` for repeated rehearsals.
+even after deletion. Run the dry run first when in doubt.
 
