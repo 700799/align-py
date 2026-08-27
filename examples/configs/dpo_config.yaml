@@ -1,0 +1,31 @@
+# AlignPy DPO configuration — run with: alignpy align --config dpo_config.yaml
+method: dpo
+
+model:
+  model_name_or_path: Qwen/Qwen2.5-0.5B-Instruct
+  torch_dtype: bfloat16
+
+data:
+  dataset_name_or_path: trl-lib/ultrafeedback_binarized
+  split: train
+  eval_split: test
+
+train:
+  output_dir: ./qwen-dpo
+  learning_rate: 5.0e-6
+  per_device_train_batch_size: 4
+  gradient_accumulation_steps: 4
+  num_train_epochs: 1.0
+  eval_strategy: epoch
+  bf16: true
+
+peft:
+  enabled: true
+  r: 16
+  lora_alpha: 32
+
+dpo:
+  beta: 0.1
+  loss_type: sigmoid
+  max_prompt_length: 512
+  max_completion_length: 1024

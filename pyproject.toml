@@ -1,0 +1,74 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "alignpy"
+# Version lives only in alignpy/__init__.py (__version__); hatchling reads it.
+dynamic = ["version"]
+description = "A lightweight, modular framework for LLM alignment: SFT, DPO, and GRPO on top of Hugging Face TRL."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "AlignPy contributors" }]
+keywords = ["llm", "alignment", "dpo", "grpo", "rlhf", "preference-tuning", "trl"]
+# No "License :: OSI Approved ::" classifier: PEP 639 forbids pairing it with the
+# SPDX `license` field above.
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "pydantic>=2.7",
+    "pyyaml>=6.0",
+    "trl>=1.0,<2.0",
+    "transformers>=5.0",
+    "peft>=0.17",
+    "datasets>=3.0",
+    "accelerate>=1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[project.urls]
+Homepage = "https://github.com/700799/align-py"
+Repository = "https://github.com/700799/align-py"
+Issues = "https://github.com/700799/align-py/issues"
+
+[project.scripts]
+alignpy = "alignpy.cli:main"
+
+[tool.hatch.version]
+path = "alignpy/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["alignpy"]
+
+[tool.hatch.build.targets.sdist]
+include = ["alignpy", "tests", "examples", "README.md", "LICENSE", "pyproject.toml"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# pytest.importorskip must run before the imports it guards.
+"tests/*" = ["E402"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+markers = [
+    "integration: end-to-end tests that download models and run real training (deselect with -m 'not integration')",
+]

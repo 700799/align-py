@@ -1,0 +1,27 @@
+# AlignPy GRPO configuration — reward pipeline mixing a custom function
+# (registered via @register_reward) with a Hub reward model.
+method: grpo
+
+model:
+  model_name_or_path: Qwen/Qwen2.5-0.5B-Instruct
+  torch_dtype: bfloat16
+
+data:
+  dataset_name_or_path: trl-lib/tldr
+  split: train
+
+train:
+  output_dir: ./qwen-grpo
+  learning_rate: 1.0e-6
+  per_device_train_batch_size: 8
+  bf16: true
+
+grpo:
+  num_generations: 8
+  max_completion_length: 512
+  temperature: 0.9
+  beta: 0.04
+  reward_funcs:
+    - length_penalty                          # registered custom Python reward
+    - Skywork/Skywork-Reward-Llama-3.1-8B     # Hub reward model, loaded by TRL
+  reward_weights: [0.2, 1.0]
